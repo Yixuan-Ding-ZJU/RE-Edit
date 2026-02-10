@@ -19,6 +19,7 @@ class DataPair:
         original_image_b64: 原始图像的base64编码
         edit_instruction: 编辑指令
         original_description: 原始图像描述
+        rationale: 编辑任务的难点说明（可选）
         original_image: 解码后的PIL图像对象（可选）
         edited_image: 编辑后的图像（可选）
         score: 评分（可选）
@@ -29,6 +30,7 @@ class DataPair:
     original_image_b64: str
     edit_instruction: str
     original_description: str
+    rationale: Optional[str] = None  # 新增：编辑任务难点说明
     original_image: Optional[Image.Image] = None
     edited_image: Optional[Image.Image] = None
     score: Optional[float] = None

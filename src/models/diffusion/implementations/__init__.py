@@ -5,7 +5,7 @@ Diffusion model implementations
 
 from .example_model import ExampleDiffusionModel
 from .qwen_image_edit import QwenImageEditModel
-from .multi_gpu_qwen_edit import MultiGPUQwenImageEditModel
+#from .multi_gpu_qwen_edit import MultiGPUQwenImageEditModel
 
-__all__ = ["ExampleDiffusionModel", "QwenImageEditModel", "MultiGPUQwenImageEditModel"]
+__all__ = ["ExampleDiffusionModel", "QwenImageEditModel"]
 

@@ -57,12 +57,19 @@ def setup_logger(
         console_handler.setFormatter(color_formatter)
         logger.addHandler(console_handler)
     
-    # 文件输出
+    # 文件输出（实时写入）
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        # 使用自定义的FileHandler，确保实时flush
+        class RealtimeFileHandler(logging.FileHandler):
+            """实时写入的FileHandler，每次写入后立即flush"""
+            def emit(self, record):
+                super().emit(record)
+                self.flush()
+        
+        file_handler = RealtimeFileHandler(log_file, encoding='utf-8')
         file_handler.setLevel(getattr(logging, level.upper()))
         
         file_formatter = logging.Formatter(log_format, datefmt=date_format)

@@ -143,6 +143,7 @@ class BenchmarkLoader:
                 # 使用英文字段
                 edit_instruction = item.get("edit_instruction_en", "")
                 original_description = item.get("original_description_en", "")
+                rationale = item.get("rationale_short_en", "")  # 新增：加载编辑任务难点说明
                 
                 # 创建DataPair
                 pair = DataPair(
@@ -151,6 +152,7 @@ class BenchmarkLoader:
                     original_image_b64=original_image_b64,
                     edit_instruction=edit_instruction,
                     original_description=original_description,
+                    rationale=rationale,  # 新增：保存rationale
                     metadata=item  # 保存完整的原始数据
                 )
                 

@@ -115,4 +115,115 @@ class PromptManager:
         """返回所有可用的类别"""
         return list(self.prompts_config.keys())
 
+    def get_pq_system_prompt(self) -> str:
+        """
+        获取PQ指标的系统prompt
+        
+        Returns:
+            PQ指标的系统prompt字符串
+        """
+        if "pq_metric" not in self.prompts_config:
+            raise ValueError("PQ metric prompt configuration not found in prompts config")
+        
+        return self.prompts_config["pq_metric"]["system_prompt"]
+    
+    def get_pq_user_prompt(self, edit_instruction: str) -> str:
+        """
+        获取PQ指标的用户prompt（填充模板）
+        
+        Args:
+            edit_instruction: 编辑指令
+            
+        Returns:
+            填充好的PQ用户prompt字符串
+        """
+        if "pq_metric" not in self.prompts_config:
+            raise ValueError("PQ metric prompt configuration not found in prompts config")
+        
+        template = self.prompts_config["pq_metric"]["user_prompt_template"]
+        
+        # 准备替换变量
+        format_vars = {
+            "edit_instruction": edit_instruction,
+        }
+        
+        try:
+            return template.format(**format_vars)
+        except KeyError as e:
+            raise ValueError(f"Missing variable in PQ metric template: {e}")
+    
+    def get_sc_system_prompt(self) -> str:
+        """
+        获取SC指标的系统prompt
+        
+        Returns:
+            SC指标的系统prompt字符串
+        """
+        if "sc_metric" not in self.prompts_config:
+            raise ValueError("SC metric prompt configuration not found in prompts config")
+        
+        return self.prompts_config["sc_metric"]["system_prompt"]
+    
+    def get_sc_user_prompt(self, edit_instruction: str) -> str:
+        """
+        获取SC指标的用户prompt（填充模板）
+        
+        Args:
+            edit_instruction: 编辑指令
+            
+        Returns:
+            填充好的SC用户prompt字符串
+        """
+        if "sc_metric" not in self.prompts_config:
+            raise ValueError("SC metric prompt configuration not found in prompts config")
+        
+        template = self.prompts_config["sc_metric"]["user_prompt_template"]
+        
+        # 准备替换变量
+        format_vars = {
+            "edit_instruction": edit_instruction,
+        }
+        
+        try:
+            return template.format(**format_vars)
+        except KeyError as e:
+            raise ValueError(f"Missing variable in SC metric template: {e}")
+    
+    def get_instruction_following_system_prompt(self) -> str:
+        """
+        获取Instruction Following指标的系统prompt
+        
+        Returns:
+            Instruction Following指标的系统prompt字符串
+        """
+        if "instruction_following" not in self.prompts_config:
+            raise ValueError("Instruction following metric prompt configuration not found in prompts config")
+        
+        return self.prompts_config["instruction_following"]["system_prompt"]
+    
+    def get_instruction_following_user_prompt(self, edit_instruction: str) -> str:
+        """
+        获取Instruction Following指标的用户prompt（填充模板）
+        
+        Args:
+            edit_instruction: 编辑指令
+            
+        Returns:
+            填充好的Instruction Following用户prompt字符串
+        """
+        if "instruction_following" not in self.prompts_config:
+            raise ValueError("Instruction following metric prompt configuration not found in prompts config")
+        
+        template = self.prompts_config["instruction_following"]["user_prompt_template"]
+        
+        # 准备替换变量
+        format_vars = {
+            "edit_instruction": edit_instruction,
+        }
+        
+        try:
+            return template.format(**format_vars)
+        except KeyError as e:
+            raise ValueError(f"Missing variable in Instruction following metric template: {e}")
+
 

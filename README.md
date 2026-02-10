@@ -1,155 +1,267 @@
-# Image Edit Benchmark Pipeline
+# RE-Edit & EditRefine 
 
-图像编辑模型评测系统 - 用于在benchmark数据集上测试扩散编辑模型的性能
+Image editing model evaluation system for testing reasoning-aware capabilities on RE-Edit benchmark and EditRefine module effectiveness.
 
-## 📁 项目结构
+## Table of Contents
+
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [RE-Edit Pipeline](#re-edit-pipeline)
+- [EditRefine Standalone Inference](#editrefine-standalone-inference)
+- [Configuration Reference](#configuration-reference)
+- [Extension Guide](#extension-guide)
+
+---
+
+## Project Structure
 
 ```
-image_edit_benchmark/
-├── README.md                     # 项目说明文档
-├── requirements.txt              # 依赖包列表
-├── config.yaml                   # 配置文件
-├── config_template.yaml          # 配置文件模板
-├── main.py                       # 主入口脚本
+RE-Edit_EditRefine/
+├── README.md                            # Documentation
+├── requirements.txt                     # Dependencies
+├── main.py                              # RE-Edit Pipeline entry
+├── run_editrefine_inference.py          # EditRefine Inference entry
 │
-├── src/                          # 源代码目录
+├── config/                # EditRefine standalone module
+│   ├── config_iterative_refinement.yaml     # RE-Edit Pipeline config
+│   ├── config_editrefine_inference.yaml     # EditRefine Inference config
+│   └── DIFFUSION_FRAMEWORK_ENV_SUMMARY.md
+│
+├── editrefine_inference/                # EditRefine standalone module
 │   ├── __init__.py
-│   ├── pipeline.py               # 主Pipeline类
-│   │
-│   ├── data/                     # 数据加载模块
-│   │   ├── __init__.py
-│   │   ├── benchmark_loader.py   # Benchmark数据加载器
-│   │   └── data_types.py         # 数据类型定义
-│   │
-│   ├── models/                   # 模型模块
-│   │   ├── __init__.py
-│   │   ├── base.py               # 模型基类定义
-│   │   │
-│   │   ├── diffusion/            # 扩散编辑模型
-│   │   │   ├── __init__.py
-│   │   │   ├── base_diffusion.py # 扩散模型抽象基类
-│   │   │   └── implementations/  # 具体实现
-│   │   │       ├── __init__.py
-│   │   │       ├── example_model.py
-│   │   │       └── custom_model.py
-│   │   │
-│   │   └── reward/               # Reward评分模型
-│   │       ├── __init__.py
-│   │       ├── base_reward.py    # Reward模型抽象基类
-│   │       └── implementations/  # 具体实现
-│   │           ├── __init__.py
-│   │           ├── example_reward.py
-│   │           └── custom_reward.py
-│   │
-│   ├── evaluation/               # 评估模块
-│   │   ├── __init__.py
-│   │   ├── scorer.py             # 评分统计器
-│   │   └── reporter.py           # 报告生成器
-│   │
-│   └── utils/                    # 工具模块
-│       ├── __init__.py
-│       ├── image_utils.py        # 图像处理工具
-│       ├── logger.py             # 日志工具
-│       └── prompt_manager.py     # Prompt管理器
+│   ├── config_loader.py
+│   └── runner.py
 │
-├── configs/                      # 配置文件目录
-│   ├── prompts/                  # Prompt配置
-│   │   ├── category_prompts.yaml # 各类别的评分prompt
-│   │   └── default_prompts.yaml  # 默认prompt
-│   └── models/                   # 模型配置
-│       ├── diffusion_config.yaml # 扩散模型配置
-│       └── reward_config.yaml    # Reward模型配置
-│
-├── examples/                     # 示例代码
-│   ├── run_evaluation.py         # 运行评测示例
-│   └── custom_model_example.py   # 自定义模型示例
-│
-├── outputs/                      # 输出目录
-│   ├── results/                  # 评测结果
-│   ├── logs/                     # 日志文件
-│   └── images/                   # 生成的图像（可选）
-│
-└── tests/                        # 测试代码
-    ├── __init__.py
-    ├── test_data_loader.py
-    ├── test_models.py
-    └── test_pipeline.py
+└── src/                                 # Source code
+    ├── pipeline.py
+    ├── iterative_pipeline_v7.py         # Pipeline implementation
+    ├── data/                            # Data loading
+    │   ├── benchmark_loader.py
+    │   ├── iterative_data.py
+    │   └── data_types.py
+    ├── models/                          # Models
+    │   ├── diffusion/                   # Image editing models (11 types)
+    │   │   ├── base_diffusion.py
+    │   │   └── implementations/
+    │   ├── mllm/                        # MLLM for analysis cot & re-edit
+    │   │   ├── base_mllm.py
+    │   │   └── implementations/
+    │   └── reward/                      # Reward models
+    │       ├── base_reward.py
+    │       └── implementations/
+    ├── evaluation/                      # Evaluation & reporting
+    │   ├── scorer.py
+    │   └── reporter.py
+    └── utils/                           # Utilities
+        ├── image_utils.py
+        ├── logger.py
+        └── prompt_manager.py
 ```
 
-## 🎯 核心模块说明
+---
 
-### 1. 数据加载模块 (`src/data/`)
-- 读取benchmark JSON文件
-- 按类别组织数据（原图b64、编辑指令、原图描述）
-- 提供数据迭代器
+## Quick Start
 
-### 2. 扩散编辑模型模块 (`src/models/diffusion/`)
-- 抽象基类定义统一接口
-- 支持多种扩散模型实现
-- 便于替换和扩展
+### 1. Install Dependencies
 
-### 3. Reward评分模型模块 (`src/models/reward/`)
-- 抽象基类定义统一接口
-- 按类别使用不同prompt
-- 支持多种评分模型
-
-### 4. 评估模块 (`src/evaluation/`)
-- 按类别计算平均分
-- 生成详细评测报告
-- 支持多种统计指标
-
-### 5. Pipeline (`src/pipeline.py`)
-- 整合所有模块
-- 控制评测流程
-- 支持断点续传
-
-## 🚀 快速开始
-
-### 安装依赖
 ```bash
+git clone xxx
+conda create -n RE-Edit python==3.12
+conda activate RE-Edit
 pip install -r requirements.txt
 ```
 
-### 配置模型
+### 2. RE-Edit Pipeline (Full Evaluation)
+
 ```bash
-cp config_template.yaml config.yaml
-# 编辑 config.yaml，配置你的模型和参数
+# Edit config to select model & settings
+nano config_iterative_refinement.yaml
+
+# Run evaluation
+python main.py --config config_iterative_refinement.yaml --mode iterative
 ```
 
-### 运行评测
+### 3. EditRefine Standalone Inference (Single Image)
+
 ```bash
-python main.py --config config.yaml
+python run_editrefine_inference.py \
+  --editrefine-config config_editrefine_inference.yaml \
+  --image /path/to/image.png \
+  --instruction "Add a red hat"
 ```
 
-## 📝 使用说明
+---
 
-详细使用说明请参考各模块的文档。
+## RE-Edit Pipeline
 
-## 🔧 扩展指南
+Full evaluation pipeline for RE-Edit benchmark with 5 stages.
 
-### 添加新的扩散编辑模型
-1. 在 `src/models/diffusion/implementations/` 创建新的实现文件
-2. 继承 `BaseDiffusionModel` 类
-3. 实现 `edit_image()` 方法
-4. 在配置文件中指定模型类
+### Pipeline Stages
 
-### 添加新的Reward模型
-1. 在 `src/models/reward/implementations/` 创建新的实现文件
-2. 继承 `BaseRewardModel` 类
-3. 实现 `score()` 方法
-4. 在配置文件中指定模型类
+| Stage | Description |
+|-------|-------------|
+| **Stage 1** | Primary Editing: initial edit with target diffusion model |
+| **Stage 2** | MLLM Analysis: analyze result, generate CoT reasoning & re-edit instruction |
+| **Stage 3** | Refinement Editing: refine with re-edit instruction |
+| **Stage 4** | Comparative Scoring: evaluate both primary & refined images |
+| **Stage 5** | Statistics: aggregate metrics & generate report |
 
-## 📊 评测流程
+### Key Configuration
 
-1. 加载benchmark数据集（JSON）
-2. 按类别提取：原图b64、编辑指令、原图描述
-3. 调用扩散编辑模型生成编辑后的图像
-4. 调用Reward模型对每个pair进行评分
-5. 按类别计算平均分
-6. 生成完整评测报告
+**Evaluation Settings**:
 
-## 📄 License
+```yaml
+evaluation:
+  output_dir: "./results_iterative"
+  save_images: true
+  primary_images_dir: null              # Skip Stage 1, load from dir if set
+  primary_image_suffix: "_primary.png"
+  skip_stage4: false                     # Skip scoring if true
+  skip_refinement: false                 # Skip EditRefine (Stage 2-3) if true, just perform evaluation of specific image edit model on RE-Edit
+```
+
+**Diffusion Models** (11 types supported):
+
+```yaml
+diffusion_model:
+  primary:                               # Model under evaluation
+    type: step1x_edit_v1p1               # Options: multi_gpu_qwen_edit, flux2_dev,
+                                         #   step1x_edit_v1p1, step1x_edit_v1p2_preview,
+                                         #   janus, ovis_u1, hidream_e1, omnigen2,
+                                         #   flux_kontext, dreamomni2, qwen_image_edit_2511
+    params:
+      model_name: "/path/to/model"
+      device_ids: [0, 1, 2, 3]
+      seed: 42
+      num_inference_steps: 28
+
+  refinement:                            # Fixed refinement executor
+    type: multi_gpu_qwen_edit
+    params:
+      model_name: "/path/to/qwen-edit"
+      device_ids: [0, 1, 2, 3]
+      seed: 42
+      num_inference_steps: 1
+```
+
+**MLLM** (Reasoning Agent):
+
+```yaml
+mllm:
+  type: qwen25_vl
+  params:
+    model_name: "/path/to/qwen2.5-vl"
+    device: "auto"
+    batch_size: 16
+    max_new_tokens: 512
+```
+
+**Reward Model** (vLLM recommended for speed):
+
+```yaml
+reward_model:
+  type: qwen3_vl_vllm_subprocess
+  params:
+    model_name: "/path/to/Qwen3-VL-30B"
+    tensor_parallel_size: 4               # Must be divisor of 32 (attn heads)
+    batch_size: 8
+    conda_env: "yx_vllm"
+    timeout: 1200
+```
+
+---
+
+## EditRefine Standalone Inference
+
+Single-image inference: **Image + Instruction** → Primary Edit → MLLM Analysis (generic prompt) → One-step Refinement → Save 4 outputs.
+
+### Features
+
+- **Workflow**: `original image` → `primary_*.png` → **MLLM** (CoT + re-edit) → `refined_*.png`
+- **Config**: `config_editrefine_inference.yaml` references `base_config: config_iterative_refinement.yaml` (reuses `diffusion_model`, `mllm`)
+- **Outputs**: 4 files per run
+  - `{prefix}_primary.png` - primary edited image
+  - `{prefix}_refined.png` - refined edited image
+  - `{prefix}_cot.txt` - chain-of-thought reasoning
+  - `{prefix}_re_edit.txt` - re-edit instruction
+- **Module**: `editrefine_inference/` (`config_loader`, `runner`)
+
+### Usage
+
+
+**With Custom Output**:
+
+```bash
+python run_editrefine_inference.py \
+  --editrefine-config config_editrefine_inference.yaml \
+  --image img.png \
+  --instruction "Change the sky to sunset" \
+  --output-dir ./my_output \
+  --output-prefix experiment_01
+```
+
+**Optional Arguments**:
+- `--output-dir` - override `editrefine.output_dir` in config
+- `--output-prefix` - output filename prefix (default: "editrefine")
+
+### How to Switch Image Edit Model
+
+Edit `config_iterative_refinement.yaml` and uncomment desired model in `diffusion_model.primary` section. 11 models supported (see [config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md] for environment requirements).
+
+---
+
+## Configuration Reference
+
+### Diffusion Models
+
+**11 models supported**:
+- `multi_gpu_qwen_edit` - Qwen-Image-Edit (multiprocessing)
+- `qwen_image_edit_2511` - Qwen-Image-Edit-2511
+- `step1x_edit_v1p1` - Step1X-Edit v1p1 (subprocess only)
+- `step1x_edit_v1p2_preview` - Step1X-Edit v1p2 (subprocess only)
+- `flux_kontext` - FLUX.1-Kontext
+- `flux2_dev` - FLUX.2-dev
+- `janus` - Janus-4o-7B (subprocess only)
+- `ovis_u1` - Ovis-U1-3B (subprocess only)
+- `hidream_e1` - HiDream-E1.1 (subprocess only)
+- `omnigen2` - OmniGen2 (subprocess only)
+- `dreamomni2` - DreamOmni2 (subprocess only)
+
+
+### Evaluation Metrics
+
+Control which metrics to evaluate:
+
+```yaml
+evaluation:
+  enable_pq_metric: true                 # Perceptual Quality
+  enable_sc_metric: true                 # Semantic Consistency
+  enable_instruction_following_metric: true  # Instruction Following
+  enable_primary_scoring: false          # Score primary images (compute improvement_rate)
+
+```
+
+---
+
+## Extension Guide
+
+### Add New Diffusion Model
+
+1. Create implementation in `src/models/diffusion/implementations/`
+2. Inherit from `BaseDiffusionModel`
+3. Implement `edit_image()` and optionally `batch_edit()`
+4. Register in `iterative_pipeline_v7.py` loaders
+5. Add config template to `config_iterative_refinement.yaml`
+
+### Add New Reward Model
+
+1. Create implementation in `src/models/reward/implementations/`
+2. Inherit from `BaseRewardModel`
+3. Implement `score()` method
+4. Register in pipeline loader
+
+---
+
+## License
 
 MIT License
-
-

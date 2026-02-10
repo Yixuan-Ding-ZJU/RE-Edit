@@ -1,0 +1,13 @@
+# EditRefine Standalone Inference Configuration
+
+
+# Base config path (reads diffusion_model.primary, diffusion_model.refinement, mllm from here)
+base_config: "config_iterative_refinement.yaml"
+
+# EditRefine inference-specific configuration
+editrefine:
+  # Default output directory for single inference (can be overridden via CLI --output-dir)
+  output_dir: "./editrefine_inference_output"
+  # Output filename prefix (without extension); if null, uses input image filename
+  # Output files: {output_name_prefix}_primary.png, _refined.png, _cot.txt, _re_edit.txt
+  output_name_prefix: null

@@ -172,18 +172,83 @@ class Qwen3VLRewardModel(BaseRewardModel):
         从模型响应中提取分数
         
         支持多种格式：
-        - "Score: 8.5"
-        - "8.5/10"
-        - "Rating: 8.5"
-        - "8.5"
+        1. JSON格式（新）: {"reasoning": "...", "score": 0或1}
+        2. 数值格式（旧）: "Score: 8.5", "8.5/10", "Rating: 8.5", "8.5"
+        3. 文本格式（旧）: "yes", "no"
         
         Args:
             response: 模型的文本响应
             
         Returns:
-            提取的分数（0-10范围内）
+            提取的分数（0-10范围内，或转换后的0/10）
         """
-        # 尝试多种模式匹配
+        response_stripped = response.strip()
+        
+        # ===== 方法1: 尝试解析JSON格式（新格式） =====
+        try:
+            import json
+            json_data = json.loads(response_stripped)
+            
+            if 'score' in json_data:
+                score = json_data['score']
+                
+                # 处理不同的score格式
+                if isinstance(score, (int, float)):
+                    # score为数字：0或1（二元），或0-10（数值）
+                    if score in [0, 1]:
+                        # 二元评分：转换为0或10
+                        return float(score * 10)
+                    else:
+                        # 数值评分：限制在0-10范围
+                        return max(0.0, min(10.0, float(score)))
+                
+                elif isinstance(score, str):
+                    score_lower = score.strip().lower()
+                    if score_lower in ["1", "yes"]:
+                        return 10.0
+                    elif score_lower in ["0", "no"]:
+                        return 0.0
+                    else:
+                        # 尝试转换为数字
+                        try:
+                            return max(0.0, min(10.0, float(score)))
+                        except:
+                            pass
+                
+                elif isinstance(score, list) and len(score) > 0:
+                    score_val = score[0]
+                    if score_val in [1, "1", "yes"]:
+                        return 10.0
+                    elif score_val in [0, "0", "no"]:
+                        return 0.0
+        
+        except json.JSONDecodeError:
+            # JSON解析失败，尝试提取JSON片段
+            json_match = re.search(r'\{[^}]*"score"[^}]*\}', response_stripped, re.DOTALL)
+            if json_match:
+                try:
+                    json_str = json_match.group(0)
+                    json_data = json.loads(json_str)
+                    if 'score' in json_data:
+                        score = json_data['score']
+                        if score in [1, "1", "yes"]:
+                            return 10.0
+                        elif score in [0, "0", "no"]:
+                            return 0.0
+                except:
+                    pass
+        
+        except Exception:
+            pass
+        
+        # ===== 方法2: 检查yes/no文本（向后兼容） =====
+        response_lower = response_stripped.lower()
+        if re.search(r'\byes\b', response_lower):
+            return 10.0
+        elif re.search(r'\bno\b', response_lower):
+            return 0.0
+        
+        # ===== 方法3: 尝试提取数值分数（旧格式） =====
         patterns = [
             r'[Ss]core[:\s]+(\d+\.?\d*)',  # Score: 8.5
             r'[Rr]ating[:\s]+(\d+\.?\d*)',  # Rating: 8.5
@@ -194,7 +259,7 @@ class Qwen3VLRewardModel(BaseRewardModel):
         ]
         
         for pattern in patterns:
-            match = re.search(pattern, response.strip())
+            match = re.search(pattern, response_stripped)
             if match:
                 try:
                     score = float(match.group(1))

@@ -1,10 +1,8 @@
 """
-截止2026-01-08，只有qwen-image-edit这个diffusion模块实现了iterative refinement的模式
+Qwen-Image-Edit-2511 diffusion model implementation
+Qwen图像编辑模型2511版本实现（支持多GPU并行 - 多进程版本）
 
-Qwen-Image-Edit diffusion model implementation
-Qwen图像编辑模型实现（支持多GPU并行 - 多进程版本）
-
-基于官方 Qwen-Image-Edit 模型
+基于官方 Qwen-Image-Edit-2511 模型（QwenImageEditPlusPipeline）
 
 多进程架构：
 - 每个GPU对应一个独立进程
@@ -60,38 +58,6 @@ Pipeline会在多轮评测中复用模型实例，必须正确实现生命周期
                if p.is_alive():
                    p.kill()
 
-2. **Subprocess模式**（按需启动，无需维护长期进程）：
-   
-   def load_to_gpu(self):
-       # ✅ 无需操作（subprocess在batch_edit时按需启动）
-       print("Subprocess mode: models loaded on-demand")
-       return
-   
-   def batch_edit(self):
-       # ✅ 每次启动新的subprocess
-       subprocess.run(['python', 'worker.py', ...])
-       # subprocess自动退出，无需手动管理
-
-3. **Threading模式**（如FluxKontext）：
-   
-   def load_to_gpu(self):
-       # ✅ 检查模型是否在GPU上
-       if hasattr(self, 'workers'):
-           for worker in self.workers:
-               if not worker._model_loaded:
-                   worker.load_to_gpu()
-
-【测试验证】
-  在iterative_pipeline中运行至少2个类别，确保：
-  1. 第1轮正常完成
-  2. 第2轮不卡死，能正常启动和完成
-  3. 日志中能看到"Restarting"或"Initializing"等重启信息
-
-【参考实现】
-  - Multiprocessing: qwen_image_edit.py (本文件)
-  - Subprocess: step1x_edit_v1p2_preview.py
-  - Threading: flux_kontext.py
-
 ================================================================================
 """
 
@@ -103,8 +69,6 @@ from tqdm import tqdm
 import base64
 from io import BytesIO
 import sys
-import threading
-from collections import defaultdict
 
 from ..base_diffusion import BaseDiffusionModel
 
@@ -114,7 +78,7 @@ mp.set_start_method('spawn', force=True)
 
 def _load_model_in_process(gpu_id: int, model_name: str, config: Dict[str, Any]):
     """
-    在独立进程中加载Qwen-Image-Edit模型
+    在独立进程中加载Qwen-Image-Edit-2511模型
     
     Args:
         gpu_id: GPU ID
@@ -124,9 +88,9 @@ def _load_model_in_process(gpu_id: int, model_name: str, config: Dict[str, Any])
     Returns:
         pipeline对象
     """
-    print(f"[GPU {gpu_id}] 🔄 Loading Qwen-Image-Edit model...")
+    print(f"[GPU {gpu_id}] 🔄 Loading Qwen-Image-Edit-2511 model...")
     try:
-        from diffusers import QwenImageEditPipeline
+        from diffusers import QwenImageEditPlusPipeline
         
         # 设置当前设备
         torch.cuda.set_device(gpu_id)
@@ -147,16 +111,17 @@ def _load_model_in_process(gpu_id: int, model_name: str, config: Dict[str, Any])
             torch_dtype = torch.float32
         
         # 加载模型
-        print(f"[GPU {gpu_id}] 🔹 Loading Qwen-Image-Edit pipeline...")
-        pipeline = QwenImageEditPipeline.from_pretrained(model_name)
+        print(f"[GPU {gpu_id}] 🔹 Loading Qwen-Image-Edit-2511 pipeline...")
+        pipeline = QwenImageEditPlusPipeline.from_pretrained(model_name, torch_dtype=torch_dtype)
         
-        # 分步设置 dtype 和 device（官方推荐方式）
-        pipeline.to(torch_dtype)
+        # 设置设备
         pipeline.to(device)
         
         # 禁用进度条（可选）
         if config.get("disable_progress_bar", True):
             pipeline.set_progress_bar_config(disable=True)
+        else:
+            pipeline.set_progress_bar_config(disable=None)
         
         print(f"[GPU {gpu_id}] ✅ Model loaded successfully")
         return pipeline
@@ -201,8 +166,10 @@ def _process_worker(gpu_id: int, model_name: str, config: Dict[str, Any],
             return
         
         # 提取配置参数
-        num_inference_steps = config.get("num_inference_steps", 50)
+        num_inference_steps = config.get("num_inference_steps", 40)
         true_cfg_scale = config.get("true_cfg_scale", 4.0)
+        guidance_scale = config.get("guidance_scale", 1.0)
+        num_images_per_prompt = config.get("num_images_per_prompt", 1)
         negative_prompt = config.get("negative_prompt", " ")
         seed = config.get("seed", 0)
         
@@ -234,26 +201,30 @@ def _process_worker(gpu_id: int, model_name: str, config: Dict[str, Any],
                 # 准备参数
                 num_steps = kwargs.get("num_inference_steps", num_inference_steps)
                 cfg_scale = kwargs.get("true_cfg_scale", true_cfg_scale)
+                guid_scale = kwargs.get("guidance_scale", guidance_scale)
+                num_images = kwargs.get("num_images_per_prompt", num_images_per_prompt)
                 neg_prompt = kwargs.get("negative_prompt", negative_prompt)
                 use_seed = current_seed if current_seed is not None else seed
                 show_progress = kwargs.get("show_progress", True)  # 默认显示进度条
                 
                 # 准备pipeline输入
-                # 注意：Qwen-Image-Edit 使用 torch.Generator，不需要指定device
+                # 注意：Qwen-Image-Edit-2511 使用 torch.Generator，不需要指定device
                 generator = torch.Generator()
                 generator.manual_seed(use_seed)
                 
+                # QwenImageEditPlusPipeline 要求 image 是列表格式
                 pipeline_inputs = {
-                    "image": image,
+                    "image": [image],  # 注意：必须是列表
                     "prompt": instruction,
                     "generator": generator,
                     "true_cfg_scale": cfg_scale,
                     "negative_prompt": neg_prompt,
                     "num_inference_steps": num_steps,
+                    "guidance_scale": guid_scale,
+                    "num_images_per_prompt": num_images,
                 }
                 
                 # 添加去噪进度条（如果启用）
-                # Qwen-Image-Edit 支持 callback_on_step_end
                 pbar = None
                 if show_progress:
                     # 为每个GPU进程创建独立的进度条
@@ -284,6 +255,7 @@ def _process_worker(gpu_id: int, model_name: str, config: Dict[str, Any],
                 try:
                     with torch.inference_mode():
                         output = pipeline(**pipeline_inputs)
+                        # 取第一张生成的图像
                         edited_image = output.images[0]
                 finally:
                     # 关闭进度条
@@ -314,11 +286,11 @@ def _process_worker(gpu_id: int, model_name: str, config: Dict[str, Any],
         traceback.print_exc()
 
 
-class QwenImageEditModel(BaseDiffusionModel):
+class QwenImageEdit2511Model(BaseDiffusionModel):
     """
-    Qwen-Image-Edit 扩散编辑模型实现（多GPU并行 - 多进程版本）
+    Qwen-Image-Edit-2511 扩散编辑模型实现（多GPU并行 - 多进程版本）
     
-    官方仓库: https://huggingface.co/Qwen/Qwen-Image-Edit
+    官方仓库: https://huggingface.co/Qwen/Qwen-Image-Edit-2511
     
     使用multiprocessing实现数据并行：
     - 每个GPU对应一个独立进程
@@ -329,12 +301,13 @@ class QwenImageEditModel(BaseDiffusionModel):
     特点：
     - 支持批次同步，确保GPU间进度一致
     - 进程间完全隔离，避免GIL和资源竞争
+    - 使用 QwenImageEditPlusPipeline（2511版本）
     """
     
     def _initialize(self):
         """初始化多GPU模型（多进程版本）"""
         # 获取配置
-        self.model_name = self.config.get("model_name", "Qwen/Qwen-Image-Edit")
+        self.model_name = self.config.get("model_name", "Qwen/Qwen-Image-Edit-2511")
         device_ids = self.config.get("device_ids", None)
         
         # 确定使用哪些GPU
@@ -346,25 +319,18 @@ class QwenImageEditModel(BaseDiffusionModel):
             self.device_ids = device_ids
             self.num_gpus = len(device_ids)
         
-        print(f"[QwenImageEdit] 检测到 {torch.cuda.device_count()} 个GPU")
-        print(f"[QwenImageEdit] 将使用 {self.num_gpus} 个GPU: {self.device_ids}")
-        print(f"[QwenImageEdit] 使用多进程架构（每个GPU一个独立进程）\n")
+        print(f"[QwenImageEdit2511] 检测到 {torch.cuda.device_count()} 个GPU")
+        print(f"[QwenImageEdit2511] 将使用 {self.num_gpus} 个GPU: {self.device_ids}")
+        print(f"[QwenImageEdit2511] 使用多进程架构（每个GPU一个独立进程）\n")
         
         # 创建进程间通信队列
         self.task_queues = [mp.Queue() for _ in range(self.num_gpus)]
         self.result_queue = mp.Queue()
         
-        # 用于迭代refinement模式的结果分发（线程安全）
-        # key: task_id, value: (result_data, event)
-        self._pending_results = {}  # 存储待分发的结果
-        self._result_lock = threading.Lock()  # 保护pending_results的锁
-        self._result_dispatcher_thread = None  # 结果分发线程
-        self._result_dispatcher_started = False  # 标记ResultDispatcher是否已启动
-        
         # 启动工作进程
         self.processes = []
         print("=" * 70)
-        print("🚀 Starting Worker Processes (Qwen-Image-Edit)")
+        print("🚀 Starting Worker Processes (Qwen-Image-Edit-2511)")
         print("=" * 70)
         print(f"Starting {self.num_gpus} worker processes...")
         print("(Each process will load model independently)")
@@ -393,64 +359,6 @@ class QwenImageEditModel(BaseDiffusionModel):
         print("=" * 70)
         print()
     
-    def _start_result_dispatcher(self):
-        """
-        启动结果分发线程（仅在迭代refinement模式下使用）
-        
-        该线程从result_queue中读取结果，并将其分发到对应的等待线程
-        用于支持迭代refinement模式下的多线程并发
-        """
-        # 如果已经启动，直接返回
-        if self._result_dispatcher_started:
-            return
-        def dispatcher():
-            """结果分发器：从result_queue读取结果并分发到对应的等待线程（仅用于迭代refinement模式）"""
-            while True:
-                try:
-                    # 从共享结果队列读取结果
-                    result_data = self.result_queue.get()
-                    if result_data is None:  # 退出信号
-                        break
-                    
-                    task_id, success, result_b64, error = result_data
-                    
-                    # 将结果存储到pending_results，并通知等待的线程
-                    # 注意：ResultDispatcher只在迭代模式下运行，所以所有结果都应该在_pending_results中
-                    with self._result_lock:
-                        if task_id in self._pending_results:
-                            # 找到等待该结果的线程（迭代refinement模式）
-                            event, result_container = self._pending_results[task_id]
-                            result_container['data'] = (success, result_b64, error)
-                            event.set()  # 通知等待的线程
-                        else:
-                            # 这种情况不应该发生（因为ResultDispatcher只在迭代模式下运行）
-                            # 如果发生了，说明有bug，记录警告但不处理（让batch_edit自己处理）
-                            print(f"⚠️  [ResultDispatcher] Received result for task {task_id} but no waiting thread found (this should not happen in iterative mode)")
-                
-                except Exception as e:
-                    print(f"❌ [ResultDispatcher] Error: {e}")
-                    import traceback
-                    traceback.print_exc()
-        
-        self._result_dispatcher_thread = threading.Thread(target=dispatcher, daemon=True, name="ResultDispatcher")
-        self._result_dispatcher_thread.start()
-    
-    def _stop_result_dispatcher(self):
-        """停止结果分发线程"""
-        if not self._result_dispatcher_started:
-            return
-        
-        if self._result_dispatcher_thread and self._result_dispatcher_thread.is_alive():
-            # 发送退出信号
-            try:
-                self.result_queue.put(None)
-            except:
-                pass
-            self._result_dispatcher_thread.join(timeout=2)
-        
-        self._result_dispatcher_thread = None
-        self._result_dispatcher_started = False
-    
     def edit_image(self, 
                    original_image: Image.Image,
                    edit_instruction: str,
@@ -462,91 +370,13 @@ class QwenImageEditModel(BaseDiffusionModel):
             original_image: 原始PIL图像
             edit_instruction: 编辑指令文本
             **kwargs: 其他参数
-                - target_gpu_id: 指定目标GPU ID（用于迭代refinement模式）
-                - enable_batch_sync: 是否启用批次同步（默认True）
             
         Returns:
             编辑后的PIL图像
         """
-        # 如果指定了target_gpu_id，直接使用该GPU（用于迭代refinement模式）
-        target_gpu_id = kwargs.pop("target_gpu_id", None)
-        if target_gpu_id is not None:
-            return self._edit_image_on_specific_gpu(original_image, edit_instruction, target_gpu_id, **kwargs)
-        
-        # 单张图像使用第一个GPU进程（默认行为）
+        # 单张图像使用第一个GPU进程
         results = self.batch_edit([original_image], [edit_instruction], **kwargs)
         return results[0]
-    
-    def _edit_image_on_specific_gpu(self, original_image: Image.Image, edit_instruction: str, 
-                                     target_gpu_id: int, **kwargs) -> Image.Image:
-        """
-        在指定GPU上编辑单张图像（用于迭代refinement模式，避免batch_sync）
-        
-        Args:
-            original_image: 原始PIL图像
-            edit_instruction: 编辑指令文本
-            target_gpu_id: 目标GPU ID
-            **kwargs: 其他参数
-            
-        Returns:
-            编辑后的PIL图像
-        """
-        # 确保ResultDispatcher已启动（迭代模式需要）
-        if not self._result_dispatcher_started:
-            self._start_result_dispatcher()
-        
-        # 找到target_gpu_id对应的队列索引
-        if target_gpu_id not in self.device_ids:
-            raise ValueError(f"Target GPU {target_gpu_id} not in device_ids {self.device_ids}")
-        
-        gpu_idx = self.device_ids.index(target_gpu_id)
-        
-        # 生成唯一的任务ID（使用时间戳+随机数+GPU ID避免冲突）
-        import time
-        import random
-        # 使用微秒时间戳 + GPU ID + 随机数，确保全局唯一
-        task_id = int(time.time() * 1000000) + target_gpu_id * 10000 + random.randint(0, 9999)
-        
-        # 准备参数
-        base_seed = kwargs.get("seed", self.config.get("seed", 0))
-        current_seed = base_seed + task_id
-        
-        # 编码图像
-        image_b64 = _image_to_base64(original_image)
-        
-        # 创建等待事件和结果容器（线程安全）
-        result_event = threading.Event()
-        result_container = {'data': None}
-        
-        # 注册等待该任务的结果
-        with self._result_lock:
-            self._pending_results[task_id] = (result_event, result_container)
-        
-        try:
-            # 发送任务到指定的GPU队列
-            task = (task_id, image_b64, edit_instruction, current_seed, kwargs)
-            self.task_queues[gpu_idx].put(task)
-            
-            # 等待结果（使用事件机制，避免从共享队列错误读取）
-            if result_event.wait(timeout=300):  # 5分钟超时
-                # 获取结果
-                with self._result_lock:
-                    if task_id in self._pending_results:
-                        del self._pending_results[task_id]
-                    success, result_b64, error = result_container['data']
-                
-                if success:
-                    return _base64_to_image(result_b64)
-                else:
-                    raise RuntimeError(f"Error editing image on GPU {target_gpu_id}: {error}")
-            else:
-                raise RuntimeError(f"Timeout waiting for result from GPU {target_gpu_id} (task_id: {task_id})")
-        except Exception as e:
-            # 清理pending_results
-            with self._result_lock:
-                if task_id in self._pending_results:
-                    del self._pending_results[task_id]
-            raise RuntimeError(f"Error receiving result from GPU {target_gpu_id}: {e}")
     
     def batch_edit(self,
                    images: List[Image.Image],
@@ -567,11 +397,15 @@ class QwenImageEditModel(BaseDiffusionModel):
                 - enable_batch_sync: 是否启用批次同步（默认True）
                 - num_inference_steps: 推理步数
                 - true_cfg_scale: CFG scale
+                - guidance_scale: Guidance scale（默认1.0）
+                - num_images_per_prompt: 每个prompt生成的图像数（默认1）
                 - negative_prompt: 负面提示词
+                - seed: 随机种子
+                - show_progress: 是否显示进度条（默认True）
+            
+        Returns:
+            编辑后的图像列表
         """
-        # 确保ResultDispatcher未启动（batch_edit模式不需要，直接使用队列）
-        if self._result_dispatcher_started:
-            self._stop_result_dispatcher()
         if len(images) != len(instructions):
             raise ValueError("Number of images must match number of instructions")
         
@@ -579,7 +413,7 @@ class QwenImageEditModel(BaseDiffusionModel):
         num_gpus = self.num_gpus
         enable_sync = kwargs.pop("enable_batch_sync", True)  # 默认启用批次同步
         
-        print(f"\n[QwenImageEdit] Starting batch edit: {n} images on {num_gpus} GPUs")
+        print(f"\n[QwenImageEdit2511] Starting batch edit: {n} images on {num_gpus} GPUs")
         print(f"  🔄 Batch synchronization: {'ENABLED ✅' if enable_sync else 'DISABLED ⚠️'}")
         
         # 预先分配任务并显示
@@ -751,14 +585,10 @@ class QwenImageEditModel(BaseDiffusionModel):
         """
         清理所有worker进程和队列
         """
-        # 停止结果分发线程
-        if hasattr(self, '_result_dispatcher_thread'):
-            self._stop_result_dispatcher()
-        
         if not hasattr(self, 'processes'):
             return
         
-        print(f"[QwenImageEdit] 🧹 Cleaning up {len(self.processes)} worker processes...")
+        print(f"[QwenImageEdit2511] 🧹 Cleaning up {len(self.processes)} worker processes...")
         
         # 向所有存活的进程发送停止信号
         if hasattr(self, 'task_queues'):
@@ -774,11 +604,11 @@ class QwenImageEditModel(BaseDiffusionModel):
                 try:
                     p.terminate()
                     p.join(timeout=5)
-                    print(f"[QwenImageEdit]   ✅ GPU {gpu_id} process terminated")
+                    print(f"[QwenImageEdit2511]   ✅ GPU {gpu_id} process terminated")
                 except Exception as e:
-                    print(f"[QwenImageEdit]   ⚠️  Error terminating GPU {gpu_id} process: {e}")
+                    print(f"[QwenImageEdit2511]   ⚠️  Error terminating GPU {gpu_id} process: {e}")
             else:
-                print(f"[QwenImageEdit]   ✓ GPU {gpu_id} process already dead")
+                print(f"[QwenImageEdit2511]   ✓ GPU {gpu_id} process already dead")
         
         # 清理队列（重要：防止队列堆积导致内存泄漏）
         if hasattr(self, 'task_queues'):
@@ -797,17 +627,17 @@ class QwenImageEditModel(BaseDiffusionModel):
                 except:
                     break
         
-        print(f"[QwenImageEdit] ✅ Cleanup complete")
+        print(f"[QwenImageEdit2511] ✅ Cleanup complete")
     
     def unload_from_gpu(self):
         """
         停止所有工作进程（清理资源）
         """
         if not hasattr(self, 'processes') or len(self.processes) == 0:
-            print(f"[QwenImageEdit] No processes to unload")
+            print(f"[QwenImageEdit2511] No processes to unload")
             return
         
-        print(f"[QwenImageEdit] Stopping {len(self.processes)} worker processes...")
+        print(f"[QwenImageEdit2511] Stopping {len(self.processes)} worker processes...")
         
         # 向所有进程发送停止信号（优雅退出）
         if hasattr(self, 'task_queues'):
@@ -822,7 +652,7 @@ class QwenImageEditModel(BaseDiffusionModel):
         start_time = time.time()
         for gpu_id, p in self.processes:
             if not p.is_alive():
-                print(f"[QwenImageEdit] ✓ GPU {gpu_id} process already stopped")
+                print(f"[QwenImageEdit2511] ✓ GPU {gpu_id} process already stopped")
                 continue
             
             try:
@@ -830,27 +660,27 @@ class QwenImageEditModel(BaseDiffusionModel):
                 p.join(timeout=remaining_time)
                 
                 if p.is_alive():
-                    print(f"[QwenImageEdit] ⚠️  GPU {gpu_id} process did not terminate gracefully, forcing...")
+                    print(f"[QwenImageEdit2511] ⚠️  GPU {gpu_id} process did not terminate gracefully, forcing...")
                     p.terminate()
                     p.join(timeout=3)
                     
                     # 如果terminate还不行，使用kill
                     if p.is_alive():
-                        print(f"[QwenImageEdit] ⚠️  GPU {gpu_id} process did not respond to SIGTERM, killing...")
+                        print(f"[QwenImageEdit2511] ⚠️  GPU {gpu_id} process did not respond to SIGTERM, killing...")
                         p.kill()
                         p.join(timeout=2)
                         
                         if p.is_alive():
-                            print(f"[QwenImageEdit] ❌ GPU {gpu_id} process is unresponsive (zombie)")
+                            print(f"[QwenImageEdit2511] ❌ GPU {gpu_id} process is unresponsive (zombie)")
                         else:
-                            print(f"[QwenImageEdit] ✅ GPU {gpu_id} process killed")
+                            print(f"[QwenImageEdit2511] ✅ GPU {gpu_id} process killed")
                     else:
-                        print(f"[QwenImageEdit] ✅ GPU {gpu_id} process terminated")
+                        print(f"[QwenImageEdit2511] ✅ GPU {gpu_id} process terminated")
                 else:
-                    print(f"[QwenImageEdit] ✅ GPU {gpu_id} process stopped gracefully")
+                    print(f"[QwenImageEdit2511] ✅ GPU {gpu_id} process stopped gracefully")
                     
             except Exception as e:
-                print(f"[QwenImageEdit] ⚠️  Error stopping GPU {gpu_id} process: {e}")
+                print(f"[QwenImageEdit2511] ⚠️  Error stopping GPU {gpu_id} process: {e}")
         
         # 清理队列中的残留数据（防止内存泄漏）
         if hasattr(self, 'task_queues'):
@@ -863,7 +693,7 @@ class QwenImageEditModel(BaseDiffusionModel):
                     except:
                         break
                 if cleared > 0:
-                    print(f"[QwenImageEdit] 🧹 Cleared {cleared} pending tasks from GPU {self.device_ids[i]} queue")
+                    print(f"[QwenImageEdit2511] 🧹 Cleared {cleared} pending tasks from GPU {self.device_ids[i]} queue")
         
         if hasattr(self, 'result_queue'):
             cleared = 0
@@ -874,9 +704,9 @@ class QwenImageEditModel(BaseDiffusionModel):
                 except:
                     break
             if cleared > 0:
-                print(f"[QwenImageEdit] 🧹 Cleared {cleared} pending results from result queue")
+                print(f"[QwenImageEdit2511] 🧹 Cleared {cleared} pending results from result queue")
         
-        print(f"[QwenImageEdit] ✅ All worker processes stopped")
+        print(f"[QwenImageEdit2511] ✅ All worker processes stopped")
     
     def load_to_gpu(self, parallel: bool = True):
         """
@@ -890,16 +720,16 @@ class QwenImageEditModel(BaseDiffusionModel):
             dead_processes = [gpu_id for gpu_id, p in self.processes if not p.is_alive()]
             
             if len(alive_processes) == len(self.processes):
-                print(f"[QwenImageEdit] ✅ All {len(self.processes)} worker processes are already running")
+                print(f"[QwenImageEdit2511] ✅ All {len(self.processes)} worker processes are already running")
                 return
             else:
-                print(f"[QwenImageEdit] ⚠️  Detected {len(dead_processes)} dead processes: {dead_processes}")
-                print(f"[QwenImageEdit] 🔄 Restarting all worker processes...")
+                print(f"[QwenImageEdit2511] ⚠️  Detected {len(dead_processes)} dead processes: {dead_processes}")
+                print(f"[QwenImageEdit2511] 🔄 Restarting all worker processes...")
                 # 清理所有进程和队列
                 self._cleanup_processes()
         
         # 重新初始化（启动新进程）
-        print(f"[QwenImageEdit] 🚀 Initializing worker processes...")
+        print(f"[QwenImageEdit2511] 🚀 Initializing worker processes...")
         self._initialize()
     
     def __del__(self):
@@ -919,4 +749,9 @@ class QwenImageEditModel(BaseDiffusionModel):
                             p.join(timeout=1)
                     except:
                         pass  # 析构函数不应抛出异常
+
+
+
+
+
 

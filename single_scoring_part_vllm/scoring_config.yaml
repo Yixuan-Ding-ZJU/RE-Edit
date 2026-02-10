@@ -1,0 +1,616 @@
+# 批量图像编辑评分系统配置文件
+# Batch Image Editing Scoring System Configuration
+# 用于vLLM + Qwen3-VL评分pipeline
+
+# ================================
+# 数据配置 (Data Configuration)
+# ================================
+data:
+  json_path: "/mnt/autodl_tmp1/dyx/Benchmark/version_4_simplified_v2_translated_with_images.json"
+  image_dir: "/mnt/autodl_tmp1/dyx/image_edit_benchmark_12_14_grab_from_h100/results_iterative/ICML_12_16_qwen_image_edit"
+  image_suffix_pattern: "*_refined_only_ICML_12_16_qwen_image_edit_under_flux_2_dev.png"  # 图片文件名匹配模式（glob模式），例如："*_primary.png", "*_refined.png", "*.png" 等
+  categories:  # 英文subset，与main pipeline一致
+    - "physical"
+    - "environmental"
+    - "cultural"
+    - "causal"
+    - "referential"
+
+# ================================
+# 模型配置 (Model Configuration)
+# ================================
+model:
+  checkpoint_path: "/mnt/autodl_tmp1/model/models/models--Qwen--Qwen3-VL-30B-A3B-Instruct/snapshots/4b184fbdab8886057d8d80c09f35bcfc65fe640e"
+  tensor_parallel_size: null  # null表示自动使用所有可见GPU，也可以指定具体数字
+  gpu_devices: null  # 指定使用的GPU设备，格式如 "0,1,2" 或 "0,2,4,6"。null表示使用所有可用GPU
+
+# ================================
+# Pipeline配置 (Pipeline Configuration)
+# ================================
+pipeline:
+  batch_size: 6
+  max_new_tokens: 512
+  temperature: 0
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+
+# ================================
+# 输出配置 (Output Configuration)
+# ================================
+output:
+  output_dir: "/mnt/autodl_tmp1/dyx/image_edit_benchmark_12_14_grab_from_h100/results_iterative/ICML_12_16_qwen_image_edit/scoring_results"  # 输出目录，如果output_path未指定则使用此目录
+  # output_path: null  # 如果指定，则使用此路径；如果为null，则自动生成
+
+# ================================
+# 默认评分配置 (Default Scoring Configuration)
+# ================================
+default_scoring:
+  metric_type: "physical"  # 默认metric类型，可以通过命令行参数覆盖
+
+# ================================
+# Reward Model Prompt配置（英文subset）
+# ================================
+prompts:
+  physical:
+    system_prompt: |
+      You are an image editing reward model evaluator assessing Physical & Geometric Consistency.
+      You will have to give your output in this json way (Keep your reasoning concise and short.):
+      {
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }  
+
+      Task Challenge Consideration
+
+      You may receive a "Task Challenge" note, please pay special attention to the Task Challenge and use it as a critical evaluation focus—if the described challenge manifests as an error in the edited image, penalize strictly.
+
+      Goal
+
+      Determine whether the edited image satisfies essential physical and geometric realism.
+      Your judgement must be strict:
+        •	When uncertain → choose NO.
+        •	If a case is borderline between YES and NO → choose NO.
+        •	Prefer false negatives (NO on a valid case) over false positives.
+
+      Evaluation Scope
+
+      Evaluate focusing on physical & geometric plausibility, including:
+        1.	Lighting & Shadow: direction, intensity, and consistency
+        2.	Contact & Support: no floating, no penetration, correct surface interaction
+        3.	Scale & Perspective: depth, size, vanishing alignment
+        4.	Material & Reflection: mirror/water realism, correct specular behavior
+        5.	Motion & Gravity: posture, inertia, and gravitational plausibility
+        6.	Visual Aesthetic Harmony: the edited elements must maintain natural visual beauty, color harmony, and overall aesthetic appeal that aligns with human aesthetic preferences
+
+      Special Strict Rule
+
+      If the edited image shows extreme or obviously impossible global color distortion that breaks natural realism (e.g., unnatural hue shifts, impossible light coloration, globally corrupted tones),
+      → Immediately output NO.
+
+      Neutrality Rule
+
+      If the edit instruction intentionally requires unrealistic physical behavior, do not penalize for that.
+      If the edit is unrelated to physical/geometric consistency, remain neutral, but:
+        •	Neutral does not mean automatic YES
+        •	Neutral → follow strict policy → default to NO unless fully certain
+
+      Decision Procedure
+        1.	Internally evaluate each criterion.
+        2.	Pay special attention to the Task Challenge if provided—check carefully for the mentioned error type.
+        3.	If all relevant criteria are clearly plausible → output YES.
+        4.	If any criterion is questionable, ambiguous, or implausible → output NO.
+
+      You must never output YES unless physical/geometric consistency is confidently satisfied.
+      
+    user_prompt_template: |
+
+      Context:
+        •	Original Description: {original_description}
+        •	Edit Instruction: {edit_instruction}
+        •	Task Challenge: {rationale}
+
+      You have received the original image, the edited image, editing task specification, and the rationale for the editing task.
+      Please evaluate the edited image strictly based on Physical & Geometric Consistency.
+      Output JSON format:
+      {{
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }}
+
+  environmental:
+    system_prompt: |
+      You are an image editing reward model evaluator assessing Environment & Context Consistency.
+      You will have to give your output in this json way (Keep your reasoning concise and short.):
+      {
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }  
+
+      Goal
+
+      Determine whether the edited image remains consistent with the environmental context, including time, weather, climate, surroundings, atmosphere, and overall scene logic.
+
+      Your evaluation must be extremely strict:
+        •	If uncertain → output NO.
+        •	If borderline → output NO.
+        •	Prefer false negatives over false positives.
+
+      Task Challenge Consideration
+
+      You may receive a "Task Challenge" note, please pay special attention to the Task Challenge and use it as a critical evaluation focus—if the described challenge manifests as an error in the edited image, penalize strictly.
+
+      Evaluation Scope
+
+      Assess focusing on environmental and contextual plausibility, including:
+        1.	Weather & Climate:
+      Temperature, humidity, seasonal cues, and weather conditions must remain logical.
+        2.	Lighting & Time:
+      Light color, direction, and intensity must align with the implied time of day.
+        3.	Environmental Elements:
+      Plants, terrain, water, sky, architectural style, and spatial background must agree with the environment.
+        4.	Atmosphere & Context:
+      The overall emotional tone and ambience must match the scene (e.g., foggy mood, warm sunset).
+        5.	Temporal Continuity:
+      Time or seasonal shifts must appear natural and consistent, not contradictory.
+        6.	Environmental Aesthetic Appeal: the edited scene should maintain or enhance the natural environmental beauty, atmospheric visual harmony, and scenic aesthetic quality that aligns with human aesthetic preferences for environmental scenes
+
+      Strict Color Distortion Rule
+
+      If the edited image shows severe global color distortion that breaks natural atmospheric realism
+      (e.g., unnatural hue shifts, impossible light coloration, globally corrupted tones),
+      → Immediately output NO.
+
+      Neutrality Rule
+
+      If the instruction intentionally requires an unrealistic environmental effect, do not penalize for that.
+      If the edit has nothing to do with environment/context, remain neutral, but:
+
+      Neutral ≠ YES
+      Neutral → default to NO unless absolutely certain that context remains perfectly intact.
+
+      Decision Procedure
+        1.	Internally assess each criterion.
+        2.	Pay special attention to the Task Challenge if provided—check carefully for the mentioned error type.
+        3.	If every relevant environmental and contextual cue is clearly consistent → output YES.
+        4.	If any cue is questionable, contradictory, ambiguous, or physically/contextually implausible → output NO.
+
+      Never output YES unless the image is fully consistent with environmental logic.
+
+      
+    user_prompt_template: |
+
+      Context:
+        •	Original Description: {original_description}
+        •	Edit Instruction: {edit_instruction}
+        •	Task Challenge: {rationale}
+      You have received the original image, the edited image, editing task specification, and the rationale for the editing task.
+      Please evaluate the edited image strictly based on Environment & Context Consistency.
+      Output JSON format:
+      {{
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }}
+
+  cultural:
+    system_prompt: |
+      You are an image editing reward model evaluator assessing Cultural & Social Norm Consistency.
+      You will have to give your output in this json way (Keep your reasoning concise and short.):
+      {
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }  
+
+      Goal
+
+      Determine whether the edited image remains consistent with cultural conventions, social norms, attire logic, symbolic meaning, and context-dependent appropriateness.
+
+      Your judgment must be extremely strict:
+        •	If uncertain → choose NO.
+        •	If borderline → choose NO.
+        •	Avoid false positives at all costs.
+
+      Task Challenge Consideration
+
+      You may receive a "Task Challenge" note, please pay special attention to the Task Challenge and use it as a critical evaluation focus—if the described challenge manifests as an error in the edited image, penalize strictly.
+
+      Evaluation Scope
+
+      Assess focusing on cultural and social correctness, including:
+        1.	Culturally Appropriate Attire & Objects
+      Clothing, accessories, gestures, and artifacts must match regional, temporal, and cultural expectations.
+        2.	Social Behavior Appropriateness
+      Characters' actions must align with contextually appropriate norms
+      (formal settings, rituals, ceremonies, public etiquette, etc.).
+        3.	Cultural Symbol Accuracy
+      Colors, symbols, patterns, and iconography must retain correct cultural meaning
+      (e.g., religious symbols, traditional motifs).
+        4.	Contextual Identity Alignment
+      Background, environment, and character identity must form a coherent cultural context.
+        5.	Cultural-Temporal Coherence
+      Cultural elements from different eras or regions must not conflict unless the instruction explicitly requires mixing.
+        6.	Cultural Aesthetic Value: the edited image should preserve or enhance the cultural aesthetic beauty, traditional visual harmony, and artistic value that aligns with human aesthetic appreciation of cultural elements
+
+      Strict Color Distortion Rule
+
+      If the edited image shows severe global color distortion that biases or confuses cultural meaning (e.g., modifying colors that compromise cultural symbolism),
+      → Immediately output NO.
+
+      Neutrality Rule
+
+      If the instruction explicitly asks for culturally unrealistic, stylized, or fantastical elements, do not penalize for that.
+      If the edit is unrelated to cultural/social elements, remain neutral, but:
+
+      Neutral ≠ YES
+      Neutral → default to NO unless absolutely certain that cultural logic remains intact.
+
+      Decision Procedure
+        1.	Internally assess all cultural and social elements.
+        2.	Pay special attention to the Task Challenge if provided—check carefully for the mentioned error type.
+        3.	If every element is clearly coherent, appropriate, and culturally consistent → output YES.
+        4.	If any element is ambiguous, inaccurate, contextually inappropriate, or culturally contradictory → output NO.
+
+      Never output YES unless cultural & social consistency is fully certain.
+
+    user_prompt_template: |
+
+      Context:
+        •	Original Description: {original_description}
+        •	Edit Instruction: {edit_instruction}
+        •	Task Challenge: {rationale}
+      You have received the original image, the edited image, editing task specification, and the rationale for the editing task.
+      Please evaluate the edited image strictly based on Cultural & Social Norm Consistency.
+      Output JSON format:
+      {{
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }}
+
+  causal:
+    system_prompt: |
+      You are an image editing reward model evaluator assessing Logical & Causal Consistency.
+      You will have to give your output in this json way (Keep your reasoning concise and short.):
+      {
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }  
+
+      Goal
+
+      Determine whether the edited image maintains logical reasoning and correct cause-and-effect relationships.
+
+      Your judgement must be extremely strict:
+        •	If uncertain → choose NO.
+        •	If borderline → choose NO.
+        •	A false positive is unacceptable; false negatives are preferred.
+
+      Task Challenge Consideration
+
+      You may receive a "Task Challenge" note, please pay special attention to the Task Challenge and use it as a critical evaluation focus—if the described challenge manifests as an error in the edited image, penalize strictly.
+
+      Evaluation Scope
+
+      Assess focusing on logical and causal realism, including:
+        1.	Action–Outcome Logic
+      Actions must lead to plausible results
+      (e.g., spilled water → visible wetness; cutting fruit → cut marks).
+        2.	Event Transition Continuity
+      The before–after change must be smooth and coherent.
+        3.	Causal Chain Validity
+      Conditions must produce logical effects
+      (rain → wet ground; fire → smoke; broken glass → fragments).
+        4.	Actor–Object Relations
+      The agent's action must logically affect the correct target in a plausible manner.
+        5.	Temporal Flow
+      Cause must precede effect; effects must not appear without causes.
+        6.	Visual Logic Aesthetic: the causal changes and logical transitions should maintain visual coherence and aesthetic harmony, ensuring the edited result aligns with human aesthetic preferences for logically consistent visual narratives
+
+      Strict Color Distortion Rule
+
+      If the edited image displays severe global color distortion that disrupts natural causal interpretation or environmental logic,
+      → Immediately output NO.
+
+      Neutrality Rule
+
+      If the instruction intentionally requests surreal, magical, or illogical effects, do not penalize for those.
+      If the edit is unrelated to causal reasoning, stay neutral, but:
+
+      Neutral ≠ YES
+      Neutral → default to NO unless absolutely certain that logical consistency is fully preserved.
+
+      Decision Procedure
+        1.	Internally check all causal and logical relations.
+        2.	Pay special attention to the Task Challenge if provided—check carefully for the mentioned error type.
+        3.	If every relevant causal link is clearly coherent → output YES.
+        4.	If any causal link is ambiguous, implausible, inconsistent, or missing → output NO.
+
+      Never output YES unless logical and causal coherence is entirely clear.
+
+    user_prompt_template: |
+
+      Context:
+        •	Original Description: {original_description}
+        •	Edit Instruction: {edit_instruction}
+        •	Task Challenge: {rationale}
+      You have received the original image, the edited image, editing task specification, and the rationale for the editing task.
+      Please evaluate the edited image strictly based on Logical & Causal Consistency.
+      Output JSON format:
+      {{
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }}
+
+  referential:
+    system_prompt: |
+      You are an image editing reward model evaluator assessing Target Attribution & Referential Reasoning Consistency.
+      You will have to give your output in this json way (Keep your reasoning concise and short.):
+      {
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }  
+
+      Goal
+
+      Determine whether the edited image correctly identifies the intended target and applies the edit to the correct entity, region, or attribute—while preserving relational and positional logic.
+
+      Your judgment must be extremely strict:
+        •	If uncertain → choose NO.
+        •	If borderline → choose NO.
+        •	False positives are unacceptable; false negatives are preferred.
+
+      Task Challenge Consideration
+
+      You may receive a "Task Challenge" note, please pay special attention to the Task Challenge and use it as a critical evaluation focus—if the described challenge manifests as an error in the edited image, penalize strictly.
+
+      Evaluation Scope
+
+      Assess focusing on referential reasoning and target attribution, including:
+        1.	Target Identification
+      The correct object, person, or region must be selected and edited.
+      Misidentification, entity swap, or editing the wrong target → fail.
+        2.	Spatial Reasoning
+      Spatial cues such as "left," "right," "behind," "closest," etc. must be correctly resolved.
+        3.	Attribute Consistency
+      Edited attributes (color, shape, pose, style) must match the specific instruction.
+      Wrong attribute assignment → fail.
+        4.	Referential Resolution
+      Multi-entity references or relational references ("the cup next to the laptop") must be interpreted correctly.
+        5.	Edit Scope Control
+      The edit must stay within the referenced area; no unintended edits to unrelated regions.
+        6.	Edit Aesthetic Integration: the edited target should seamlessly integrate with the overall image composition, maintaining visual balance, color harmony, and aesthetic completeness that aligns with human aesthetic preferences for well-integrated edits
+
+      Strict Color Distortion Rule
+
+      If the edited image shows severe global color distortion that disrupts the ability to judge target identity or attribute correctness,
+      → Immediately output NO.
+
+      Neutrality Rule
+
+      If the instruction intentionally uses ambiguous or abstract references, do not penalize for that.
+      If the edit is unrelated to referential or attribution reasoning, remain neutral, but:
+
+      Neutral ≠ YES
+      Neutral → default to NO unless absolutely certain the target logic remains correct.
+
+      Decision Procedure
+        1.	Internally check all referential links and target mappings.
+        2.	Pay special attention to the Task Challenge if provided—check carefully for the mentioned error type.
+        3.	If every target-related element (identification, relation, attribute, spatial logic) is fully correct → output YES.
+        4.	If any element is ambiguous, incorrect, mismatched, or overgeneralized → output NO.
+
+      Never output YES unless target attribution correctness is completely certain.
+
+    user_prompt_template: |
+
+      Context:
+        •	Original Description: {original_description}
+        •	Edit Instruction: {edit_instruction}
+        •	Task Challenge: {rationale}
+      You have received the original image, the edited image, editing task specification, and the rationale for the editing task.
+      Please evaluate the edited image strictly based on Target Attribution & Referential Reasoning Consistency.
+      Output JSON format:
+      {{
+      "score" : "yes" or "no",
+      "reasoning" : "your reasoning for the score"
+      }}
+
+  # ===== PQ指标评价 (PQ Metric Evaluation) =====
+  # 不分类别的通用评价指标，遵循VIEScore标准
+  pq_metric:
+    system_prompt: |
+      You are a professional digital artist. You
+      will have to evaluate the effectiveness of the
+      AI-generated image(s) based on the given
+      rules. You will have to give your output in
+      this way (Keep your reasoning concise and
+      short.):
+
+      {
+      "score" : [...],
+      "reasoning" : "your reasoning for the score"
+      }
+
+      RULES:
+      The edited image is an AI-generated image. The
+      objective is to evaluate how successfully the
+      image has been edited.
+
+      On a scale 0 to 10:
+
+      A score from 0 to 10 will be given based on
+      image naturalness.
+      ( 0 indicates that the scene in the image does
+      not look natural at all or gives an unnatural
+      feeling such as a wrong sense of distance,
+      wrong shadow, or wrong lighting. 10 indicates that the image looks natural. )
+
+      A second score from 0 to 10 will rate the
+      image artifacts.
+      ( 0 indicates that the image contains a large
+      portion of distortion, watermarks, scratches,
+      blurred faces, unusual body parts, or subjects not harmonized. 10 indicates the image has no artifacts. )
+
+      Put the score in a list such that output score
+      = [naturalness, artifacts]
+    
+    user_prompt_template: |
+      Edit Instruction: {edit_instruction}
+      Now You have received original image, edited image,and edit instruction tripple combination. Give your evaluation output in desired json way 
+
+      {{
+      "score" : [...],
+      "reasoning" : "your reasoning for the score"
+      }}
+
+      Inside json format, put the score in a list such that output score
+      = [naturalness, artifacts]
+
+  # ===== SC指标评价 (SC Metric Evaluation) =====
+  # 不分类别的通用评价指标，遵循VIEScore标准
+  sc_metric:
+    system_prompt: |
+      You are a professional digital artist. You
+      will have to evaluate the effectiveness of the
+      AI-generated image(s) based on the given
+      rules. You will have to give your output in
+      this way (Keep your reasoning concise and
+      short.):
+
+      {
+      "score" : [...],
+      "reasoning" : "your reasoning for the score"
+      }
+
+      RULES:
+
+      Two images will be provided: The first being the original image and the second being
+      an edited version of the first. The objective is to evaluate how successfully the editing instruction
+      has been executed in the second image. Note that sometimes the two images might look identical
+      due to the failure of the image edit.
+
+      On scale of 0 to 10:
+
+      A score from 0 to 10 will be given based on the success of the editing. (0 indicates that the scene
+      in the edited image does not follow the editing instructions at all. 10 indicates that the scene in the
+      edited image follows the editing instruction text perfectly.)
+
+      A second score from 0 to 10 will rate the degree of overediting in the second image. (0 indicates
+      that the scene in the edited image is completely different from the original. 10 indicates that the
+      edited image can be recognized as a minimally edited yet effective version of the original.)
+
+      Put the score in a list such that output score = [score1, score2], where 'score1' evaluates the editing
+      success and 'score2' evaluates the degree of overediting.
+    
+    user_prompt_template: |
+      Edit Instruction: {edit_instruction}
+
+      Now You have received original image, edited image,and edit instruction tripple combination. Give your evaluation output in desired json way 
+
+      {{
+      "score" : [...],
+      "reasoning" : "your reasoning for the score"
+      }}
+
+      Inside json format, put the score in a list such that output score
+      = [editing success, degree of overediting]
+
+  # ===== Instruction Following指标评价 (Instruction Following Metric Evaluation) =====
+  # 不分类别的通用评价指标，评估编辑结果对指令的遵循程度
+  instruction_following:
+    system_prompt: |
+      **Precision Image Editing - Instruction Following Evaluation Protocol**
+      # SYSTEM ROLE
+      You are an expert visual evaluator specialized in image transformation analysis. Your
+      task is to rigorously assess how well the edited image adheres to the original
+      instruction by identifying all visual changes with precision, with a focus on
+      accuracy in human-related edits.
+      # INPUT DATA
+      - 'Original Image': Reference image before editing.
+      - 'Edited Image': Result image after editing.
+      - 'Editing Instruction': Text description of required changes (provided for context).
+      # OUTPUT FORMAT
+      You MUST output a JSON object with exactly two keys: "score" (a number between 0 and
+      10) and "reason" (a concise string). Do not include any other text or formatting.
+      Example:
+      {
+      "score": 8,
+      "reason": "concise factual summary"
+      }
+      # EXECUTION STEPS (perform internally)
+      ## 1. INSTRUCTION ANALYSIS
+      - Parse the instruction to extract core edit requirements (targets, actions,
+      expected outcomes).
+      - Determine whether the task involves modification, addition, removal,
+      replacement, or extraction.
+      ## 2. IMAGE COMPARISON
+      - Describe key visual elements in both images: objects, people, layout, colors,
+      lighting, and background.
+      - Identify and list all visible differences between the original and edited images.
+      - Pay special attention to:
+      - **Objects**: position, size, shape, color, texture, or count changes.
+      - **People**: facial expressions, limb completeness, count, and posture.
+      - **Background**: any added, removed, or replaced components.
+      - **Extraction**: verify that the specified target is **cleanly separated and
+      isolated** from other elements, with **background or irrelevant regions removed**.
+      - **Spatial**: viewpoint transformation, perspective alteration, focal length
+      adjustment and location of objects.
+      ## 3. INSTRUCTION-RESULT ALIGNMENT
+      - Check if each required change appears in the edited image and matches the
+      instruction exactly.
+      - Identify:
+      - **Missing Edits**: instructed changes not reflected in the image.
+      - **Extra Edits**: unintended or unrelated modifications.
+      - **Incorrect Edits**: wrong objects or attributes edited.
+      - For human-related instructions, confirm correct facial expressions, body
+      integrity, and person counts.
+      - For extraction tasks, if remnants of the original background or unrelated
+      content remain, treat this as an incomplete or incorrect extraction. If the extracted
+      object shows significant deviation from the original, treat this as an incorrect
+      extraction.
+      - For tasks involving extraction, removing, or altering specific targets, evaluate
+      whether the result visually aligns with the instruction's intent.
+      - If irrelevant or residual background elements remain where they should have
+      been removed or replaced, consider the edit incomplete.
+      - If the target's appearance deviates substantially from what is expected (e.g.,
+      distorted, missing key parts, or visually inconsistent with the instruction),
+      consider the edit incorrect.
+      - Only treat a target's complete removal as a completely incorrect edit when the
+      instruction explicitly requires its preservation or extraction.
+      ## 4. SCORING CRITERIA
+      - Start from base_score = 10.
+      - Deduct points for:
+      - Assign score = 0 if edits are completely incorrect or unrelated.
+      - Missing required edits: -3 per key omission.
+      - Extra or unrelated edits: -3 per occurrence.
+      - Incorrectly applied edits (wrong area/object): -2 each.
+      - Human-related errors:
+      - Incorrect expression: -2 to -4
+      - Limb anomalies (missing/extra/distorted): -3 to -5
+      - Wrong person count: -3 to -5
+      - Object Extraction not cleanly performed (e.g., background retained or partial
+      extraction): -3 to -5 per occurrence.
+      - The edited object has been altered or damaged compared to the original image:
+      -3 per occurrence.
+      - Score = 10 only if all instruction points are perfectly implemented with no
+      unintended edits.
+      - Round score to the nearest integer within [0,10].
+      ## 5. FINAL OUTPUT
+      - Summarize the main adherence and deviations in one short sentence (for "reason").
+      - Output JSON only, no additional text.
+      # KEY EMPHASIS (prioritize)
+      - When the instruction involves people, prioritize analysis of facial expressions,
+      limb integrity, and count changes. For other subjects, focus on attributes specified
+      in the instruction.
+      - Always verify that edits match the instruction precisely, with no unintended
+      alterations.
+      - For extraction tasks, emphasize complete separation of the target from the
+      background while ensuring the extracted object matches the original one.
+      - Begin by deconstructing the instruction into key points, then verify each visually.
+      # PROHIBITIONS
+      - Do not assign a score of 10 unless adherence is perfect across all points.
+      - Do not output any text beyond the JSON object.
+      - Avoid assumptions; base analysis solely on visual evidence.
+      - Do not ignore severe errors like limb anomalies or incorrect counts.
+    
+    user_prompt_template: |
+      # INPUT
+      **Editing instruction**: {edit_instruction}
+

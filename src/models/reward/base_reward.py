@@ -25,6 +25,7 @@ class BaseRewardModel(BaseModel):
               system_prompt: str,
               user_prompt: str,
               original_image: Optional[Image.Image] = None,
+              rationale: Optional[str] = None,
               **kwargs) -> float:
         """
         对编辑后的图像进行评分
@@ -36,6 +37,7 @@ class BaseRewardModel(BaseModel):
             system_prompt: 系统prompt
             user_prompt: 用户prompt
             original_image: 原始图像（可选，某些模型可能需要）
+            rationale: 编辑任务难点描述（可选）
             **kwargs: 其他参数
             
         Returns:
@@ -50,6 +52,7 @@ class BaseRewardModel(BaseModel):
                  system_prompt: str,
                  user_prompt: str,
                  original_image: Optional[Image.Image] = None,
+                 rationale: Optional[str] = None,
                  **kwargs) -> float:
         """
         调用接口，直接调用score
@@ -61,6 +64,7 @@ class BaseRewardModel(BaseModel):
             system_prompt: 系统prompt
             user_prompt: 用户prompt
             original_image: 原始图像（可选）
+            rationale: 编辑任务难点描述（可选）
             **kwargs: 其他参数
             
         Returns:
@@ -73,6 +77,7 @@ class BaseRewardModel(BaseModel):
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             original_image=original_image,
+            rationale=rationale,
             **kwargs
         )
     
@@ -83,6 +88,7 @@ class BaseRewardModel(BaseModel):
                    system_prompts: list,
                    user_prompts: list,
                    original_images: Optional[list] = None,
+                   rationales: Optional[list] = None,
                    **kwargs) -> list:
         """
         批量评分（默认实现，可被子类覆盖以优化性能）
@@ -94,6 +100,7 @@ class BaseRewardModel(BaseModel):
             system_prompts: 系统prompt列表
             user_prompts: 用户prompt列表
             original_images: 原始图像列表（可选）
+            rationales: 编辑任务难点描述列表（可选）
             **kwargs: 其他参数
             
         Returns:
@@ -107,6 +114,9 @@ class BaseRewardModel(BaseModel):
         if original_images is None:
             original_images = [None] * n
         
+        if rationales is None:
+            rationales = [None] * n
+        
         scores = []
         for i in range(n):
             score = self.score(
@@ -116,6 +126,7 @@ class BaseRewardModel(BaseModel):
                 system_prompt=system_prompts[i],
                 user_prompt=user_prompts[i],
                 original_image=original_images[i],
+                rationale=rationales[i],
                 **kwargs
             )
             scores.append(score)
