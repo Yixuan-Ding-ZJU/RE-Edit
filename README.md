@@ -1,3 +1,5 @@
+<div align="center">
+
 # WiseEdit: Benchmarking Cognition- and Creativity-Informed Image Editing
 
 **Kaihang Pan\*** · **Weile Chen\*** · Haiyi Qiu\* · Qifan Yu · Wendong Bu · Zehan Wang ·  
@@ -19,6 +21,8 @@ Yun Zhu · Juncheng Li · Siliang Tang
 [![GitHub](https://img.shields.io/badge/GitHub-Code-black)](https://github.com/yourname/wiseedit)
 
 ---
+
+</div>
 
 
 # RE-Edit & EditRefine 
