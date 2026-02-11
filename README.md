@@ -1,16 +1,13 @@
 <div align="center">
 
-# WiseEdit: Benchmarking Cognition- and Creativity-Informed Image Editing
+# Is This Edit Correct? A Multi-Dimensional Benchmark for Reasoning-Aware Image Editing
 
-**Kaihang Pan\*** · **Weile Chen\*** · Haiyi Qiu\* · Qifan Yu · Wendong Bu · Zehan Wang ·  
-Yun Zhu · Juncheng Li · Siliang Tang  
+Yixuan Ding<sup>1</sup> · Wei Huang<sup>2<sup> · Ruijie Quan<sup>1</sup> · Xiaojuan Qi<sup>2</sup> · Yang Yi<sup>1</sup>
 
-<sup>1</sup>Zhejiang University  
-<sup>2</sup>Shanghai Artificial Intelligence Laboratory  
+<sup>1</sup>ReLER Lab, CCAI, Zhejiang University, Hangzhou, China 
+<sup>2</sup>The University of Hong Kong, Hong Kong, China
 
-\* Equal contribution.
 
----
 
 ## 🔗 Links
 
@@ -24,6 +21,10 @@ Yun Zhu · Juncheng Li · Siliang Tang
 
 </div>
 
+## 📖 Abstract
+Diffusion-based image editing has achieved strong visual fidelity under natural language instructions, yet most existing systems still operate at the level of surface instruction following, without reasoning about the implicit contextual constraints embedded in real user requests. This often leads to visually plausible but logically inconsistent edits.
+In this work, we introduce **RE-Edit**, a benchmark for **RE**asoning-aware image **Edit**ing that evaluates image editing systems across five complementary reasoning dimensions: ***physical***, ***environmental***, ***cultural***, ***causal***, and ***referential***. RE-Edit comprises 1,000 carefully curated samples, each designed such that visual plausibility alone is insufficient and correct editing requires satisfying implicit logical constraints. To support fine-grained analysis, we establish dimension-aligned evaluation criteria and conduct a comprehensive study of ten open-source and two commercial image editing models. Our results show that even advanced systems frequently struggle with implicit multi-dimensional reasoning despite producing high-quality visuals. We further present a lightweight reasoning-guided post-edit baseline as an initial exploration, illustrating how inserting explicit reasoning can help mitigate such failures in a model-agnostic manner.
+![test image](./page_image/figure_1_verison_19.png)
 
 # RE-Edit & EditRefine 
 
