@@ -30,9 +30,8 @@ Representative open-source and commercial editors evaluated on five reasoning di
 ![Primary Evaluation](page_image/Primary_Evaluation.png)
 
 
-# RE-Edit & EditRefine 
+# 🚀 Usage
 
-Image editing model evaluation system for testing reasoning-aware capabilities on RE-Edit benchmark and EditRefine module effectiveness.
 
 ## Table of Contents
 
