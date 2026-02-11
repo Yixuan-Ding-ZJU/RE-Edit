@@ -26,6 +26,7 @@ In this work, we introduce **RE-Edit**, a benchmark for **RE**asoning-aware imag
 ![Front Page](page_image/Front_Page.png)
 
 ## 📊 Primary Evaluation on RE-Edit  
+Representative open-source and commercial editors evaluated on five reasoning dimensions and two general metrics (IF, SC) by Qwen3-VL-30B; `Executor-F` and `Executor-Q` denote the FLUX.2 Dev and Qwen-Image-Edit executors, respectively.
 ![Primary Evaluation](page_image/Primary_Evaluation.png)
 
 
