@@ -17,42 +17,42 @@ Image editing model evaluation system for testing reasoning-aware capabilities o
 
 ```
 RE-Edit_EditRefine/
-├── README.md                            # Documentation
-├── requirements.txt                     # Dependencies
-├── main.py                              # RE-Edit Pipeline entry
-├── run_editrefine_inference.py          # EditRefine Inference entry
+├── README.md                                 # Documentation
+├── requirements.txt                          # Dependencies
+├── main.py                                   # RE-Edit Pipeline entry
+├── run_editrefine_inference.py               # EditRefine Inference entry
 │
-├── config/                # EditRefine standalone module
-│   ├── config_iterative_refinement.yaml     # RE-Edit Pipeline config
-│   ├── config_editrefine_inference.yaml     # EditRefine Inference config
+├── config/                                   # EditRefine standalone module
+│   ├── config_iterative_refinement.yaml      # RE-Edit Pipeline config
+│   ├── config_editrefine_inference.yaml      # EditRefine Inference config
 │   └── DIFFUSION_FRAMEWORK_ENV_SUMMARY.md
 │
-├── editrefine_inference/                # EditRefine standalone module
+├── editrefine_inference/                     # EditRefine standalone module
 │   ├── __init__.py
 │   ├── config_loader.py
 │   └── runner.py
 │
-└── src/                                 # Source code
+└── src/                                      # Source code
     ├── pipeline.py
-    ├── iterative_pipeline_v7.py         # Pipeline implementation
-    ├── data/                            # Data loading
+    ├── iterative_pipeline_v7.py              # Pipeline implementation
+    ├── data/                                 # Data loading
     │   ├── benchmark_loader.py
     │   ├── iterative_data.py
     │   └── data_types.py
-    ├── models/                          # Models
-    │   ├── diffusion/                   # Image editing models (11 types)
+    ├── models/                               # Models
+    │   ├── diffusion/                        # Image editing models (11 types)
     │   │   ├── base_diffusion.py
     │   │   └── implementations/
-    │   ├── mllm/                        # MLLM for analysis cot & re-edit
+    │   ├── mllm/                             # MLLM for analysis cot & re-edit
     │   │   ├── base_mllm.py
     │   │   └── implementations/
-    │   └── reward/                      # Reward models
+    │   └── reward/                           # Reward models
     │       ├── base_reward.py
     │       └── implementations/
-    ├── evaluation/                      # Evaluation & reporting
+    ├── evaluation/                           # Evaluation & reporting
     │   ├── scorer.py
     │   └── reporter.py
-    └── utils/                           # Utilities
+    └── utils/                                # Utilities
         ├── image_utils.py
         ├── logger.py
         └── prompt_manager.py
