@@ -65,7 +65,7 @@ RE-Edit_EditRefine/
 ### 1. Install Dependencies
 
 ```bash
-git clone xxx
+git clone https://github.com/Yixuan-Ding-ZJU/RE-Edit.git
 conda create -n RE-Edit python==3.12
 conda activate RE-Edit
 pip install -r requirements.txt
