@@ -9,7 +9,7 @@ Yixuan Ding<sup>1</sup> · Wei Huang<sup>2</sup> · Ruijie Quan<sup>1</sup> · X
 
 
 
-## 🔗 Links
+<!-- ## 🔗 Links -->
 
 [![arXiv](https://img.shields.io/badge/arXiv-2512.00387-b31b1b.svg)](https://arxiv.org/abs/2512.00387)
 [![Homepage](https://img.shields.io/badge/Homepage-Project-green)](https://your-project-page.com)
@@ -103,7 +103,25 @@ cd RE-Edit
 pip install -r requirements.txt
 ```
 
-### 2. RE-Edit Pipeline (Full Evaluation)
+### 2. Download RE-Edit & EditRefine
+
+**Download RE-Edit:**
+
+```bash
+hf download Yixuan-Ding-ZJU/RE-Edit --repo-type dataset
+```
+
+After downloading, locate `RE-Edit.json` in the downloaded directory (typically `datasets--Yixuan-Ding-ZJU--RE-Edit/RE-Edit.json`) and fill the path into `config/config_iterative_refinement.yaml` → `data-path`.
+
+**Download EditRefine:**
+
+```bash
+hf download Yixuan-Ding-ZJU/EditRefine
+```
+
+Fill the downloaded path into `config/config_iterative_refinement.yaml` → `mllm`.
+
+### 3. RE-Edit Pipeline (Full Evaluation)
 
 ```bash
 # Edit config to select model & settings
@@ -113,7 +131,7 @@ nano config/config_iterative_refinement.yaml
 python main.py --config config/config_iterative_refinement.yaml --mode iterative
 ```
 
-### 3. EditRefine Standalone Inference (Single Image)
+### 4. EditRefine Standalone Inference (Single Image)
 
 ```bash
 python run_editrefine_inference.py \
