@@ -101,8 +101,8 @@ Full evaluation pipeline for RE-Edit benchmark with 5 stages.
 | Stage | Description |
 |-------|-------------|
 | **Stage 1** | Primary Editing: initial edit with target diffusion model |
-| **Stage 2** | MLLM Analysis: analyze result, generate CoT reasoning & re-edit instruction |
-| **Stage 3** | Refinement Editing: refine with re-edit instruction |
+| **Stage 2** | EditRefine Reasoning-Agent: analyze result, generate CoT reasoning & re-edit instruction |
+| **Stage 3** | EditRefine Refinement-Executor: refine with re-edit instruction |
 | **Stage 4** | Comparative Scoring: evaluate both primary & refined images |
 | **Stage 5** | Statistics: aggregate metrics & generate report |
 
