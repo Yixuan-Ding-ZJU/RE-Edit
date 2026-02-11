@@ -121,7 +121,7 @@ evaluation:
   skip_refinement: false                 # Skip EditRefine (Stage 2-3) if true, just perform evaluation of specific image edit model on RE-Edit
 ```
 
-**Diffusion Models** (11 types supported):
+**Diffusion Models** (11 types supported, detailed see [`config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md`](config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md)):
 
 ```yaml
 diffusion_model:
