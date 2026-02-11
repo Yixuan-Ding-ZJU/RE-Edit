@@ -22,9 +22,9 @@ Yixuan Ding<sup>1</sup> · Wei Huang<sup>2</sup> · Ruijie Quan<sup>1</sup> · X
 
 ## 🔥 News
 
-- **[2026.xx.xx]** 📄 RE-Edit paper released on arXiv.
-- **[2026.xx.xx]** 📊 RE-Edit benchmark released on huggingface.
-- **[2026.xx.xx]** 📊 EditRefine model weight released on huggingface.
+- **[2026.2.12]** 📄 RE-Edit paper released on arXiv.
+- **[2026.2.12]** 📊 RE-Edit benchmark released on huggingface.
+- **[2026.2.12]** 📊 EditRefine model weight released on huggingface.
 - More updates coming soon – stay tuned and ⭐ star the repo!
 ### TODO
 
