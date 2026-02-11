@@ -20,6 +20,20 @@ Yixuan Ding<sup>1</sup> · Wei Huang<sup>2</sup> · Ruijie Quan<sup>1</sup> · X
 
 </div>
 
+## 🔥 News
+
+- **[2026.xx.xx]** 📄 RE-Edit paper released on arXiv.
+- **[2026.xx.xx]** 📊 RE-Edit benchmark released on huggingface.
+- **[2026.xx.xx]** 📊 EditRefine model weight released on huggingface.
+- More updates coming soon – stay tuned and ⭐ star the repo!
+### TODO
+
+- [x] Release paper.
+- [x] Release RE-Edit benchmark.
+- [x] Release EditRefine model weight.
+- [x] Release evaluation pipeline & inference repo.
+- [] Release project page.
+
 ## 📖 Abstract
 In this work, we introduce **RE-Edit**, a benchmark for **RE**asoning-aware image **Edit**ing that evaluates image editing systems across five complementary reasoning dimensions: ***physical***, ***environmental***, ***cultural***, ***causal***, and ***referential***. RE-Edit comprises 1,000 carefully curated samples, each designed such that visual plausibility alone is insufficient and correct editing requires satisfying implicit logical constraints.  We further present a lightweight reasoning-guided post-edit baseline (EditRefine) as an initial exploration, illustrating how inserting explicit reasoning can help mitigate such failures in a model-agnostic manner.
 ![Front Page](page_image/Front_Page.png)
