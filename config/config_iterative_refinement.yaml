@@ -3,7 +3,7 @@
 # Data Configuration
 # ================================
 data:
-  path: "xxx.json" # path for RE-Edit json file
+  path: "xxxx/datasets--Yixuan-Ding-ZJU--RE-Edit/RE-Edit.json" # path for RE-Edit json file
   categories:  # Five human-logic reasoningcategories 
     - "physical"
     - "environmental"
