@@ -101,8 +101,8 @@ Full evaluation pipeline for RE-Edit benchmark with 5 stages.
 | Stage | Description |
 |-------|-------------|
 | **Stage 1** | Primary Editing: initial edit with target diffusion model |
-| **Stage 2** | EditRefine Reasoning-Agent: analyze result, generate CoT reasoning & re-edit instruction |
-| **Stage 3** | EditRefine Refinement-Executor: refine with re-edit instruction |
+| **Stage 2** | EditRefine Reasoning Agent: analyze result, generate CoT reasoning & re-edit instruction |
+| **Stage 3** | EditRefine Executor Engine: refine with re-edit instruction |
 | **Stage 4** | Comparative Scoring: evaluate both primary & refined images |
 | **Stage 5** | Statistics: aggregate metrics & generate report |
 
@@ -114,9 +114,10 @@ Full evaluation pipeline for RE-Edit benchmark with 5 stages.
 evaluation:
   output_dir: "./results_iterative"
   save_images: true
-  primary_images_dir: null              # Skip Stage 1, load from dir if set
+  primary_images_dir: null              # Skip Stage 1 if non-empty , load primary image from dir 
   primary_image_suffix: "_primary.png"
   skip_stage4: false                     # Skip scoring if true
+  ############################# Key Point #############################
   skip_refinement: false                 # Skip EditRefine (Stage 2-3) if true, just perform evaluation of specific image edit model on RE-Edit
 ```
 
@@ -135,7 +136,7 @@ diffusion_model:
       seed: 42
       num_inference_steps: 28
 
-  refinement:                            # Fixed refinement executor
+  refinement:                            # Fixed two EditRefine Executor Engines
     type: multi_gpu_qwen_edit
     params:
       model_name: "/path/to/qwen-edit"
@@ -173,15 +174,14 @@ reward_model:
 
 ## EditRefine Standalone Inference
 
-Single-image inference: **Image + Instruction** → Primary Edit → MLLM Analysis (generic prompt) → One-step Refinement → Save 4 outputs.
+Single-image inference: **Image + Instruction** → Primary Edit → EditRefine Reasoning Agent Analysis → EditRefine Execution Engine One-step Refinement → Save 4 outputs.
 
 ### Features
 
-- **Workflow**: `original image` → `primary_*.png` → **MLLM** (CoT + re-edit) → `refined_*.png`
 - **Config**: `config_editrefine_inference.yaml` references `base_config: config_iterative_refinement.yaml` (reuses `diffusion_model`, `mllm`)
 - **Outputs**: 4 files per run
   - `{prefix}_primary.png` - primary edited image
-  - `{prefix}_refined.png` - refined edited image
+  - `{prefix}_refined.png` - refined edited image by EditRefine
   - `{prefix}_cot.txt` - chain-of-thought reasoning
   - `{prefix}_re_edit.txt` - re-edit instruction
 - **Module**: `editrefine_inference/` (`config_loader`, `runner`)
@@ -206,7 +206,7 @@ python run_editrefine_inference.py \
 
 ### How to Switch Image Edit Model
 
-Edit `config_iterative_refinement.yaml` and uncomment desired model in `diffusion_model.primary` section. 11 models supported (see [config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md] for environment requirements).
+Edit `config_iterative_refinement.yaml` and uncomment desired model in `diffusion_model.primary` section. 11 models supported (see [`config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md`](config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md) for environment requirements).
 
 ---
 
@@ -215,17 +215,17 @@ Edit `config_iterative_refinement.yaml` and uncomment desired model in `diffusio
 ### Diffusion Models
 
 **11 models supported**:
-- `multi_gpu_qwen_edit` - Qwen-Image-Edit (multiprocessing)
+- `multi_gpu_qwen_edit` - Qwen-Image-Edit 
 - `qwen_image_edit_2511` - Qwen-Image-Edit-2511
-- `step1x_edit_v1p1` - Step1X-Edit v1p1 (subprocess only)
-- `step1x_edit_v1p2_preview` - Step1X-Edit v1p2 (subprocess only)
+- `step1x_edit_v1p1` - Step1X-Edit v1p1 
+- `step1x_edit_v1p2_preview` - Step1X-Edit v1p2 
 - `flux_kontext` - FLUX.1-Kontext
 - `flux2_dev` - FLUX.2-dev
-- `janus` - Janus-4o-7B (subprocess only)
-- `ovis_u1` - Ovis-U1-3B (subprocess only)
-- `hidream_e1` - HiDream-E1.1 (subprocess only)
-- `omnigen2` - OmniGen2 (subprocess only)
-- `dreamomni2` - DreamOmni2 (subprocess only)
+- `janus` - Janus-4o-7B 
+- `ovis_u1` - Ovis-U1-3B 
+- `hidream_e1` - HiDream-E1.1 
+- `omnigen2` - OmniGen2 
+- `dreamomni2` - DreamOmni2 
 
 
 ### Evaluation Metrics
@@ -234,10 +234,9 @@ Control which metrics to evaluate:
 
 ```yaml
 evaluation:
-  enable_pq_metric: true                 # Perceptual Quality
   enable_sc_metric: true                 # Semantic Consistency
   enable_instruction_following_metric: true  # Instruction Following
-  enable_primary_scoring: false          # Score primary images (compute improvement_rate)
+  enable_primary_scoring: true          # Score primary images (compute improvement_rate)
 
 ```
 

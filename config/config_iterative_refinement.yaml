@@ -437,7 +437,7 @@ evaluation:
   # Metric toggles. If false, that metric is skipped and omitted from final JSON.
   enable_sc_metric: true   # Semantic Consistency （SC)
   enable_instruction_following_metric: true   # Instruction Following (IF)
-  enable_primary_scoring: true  # Score primary images (category/SC) and compute improvement_rate, default false
+  enable_primary_scoring: true  # Score primary images (category/SC) and compute improvement_rate
   skip_refinement: false  # If true: Primary Edit only then Scoring; report uses primary_* fields, without EditRefine
 
 # ================================
