@@ -75,17 +75,17 @@ pip install -r requirements.txt
 
 ```bash
 # Edit config to select model & settings
-nano config_iterative_refinement.yaml
+nano config/config_iterative_refinement.yaml
 
 # Run evaluation
-python main.py --config config_iterative_refinement.yaml --mode iterative
+python main.py --config config/config_iterative_refinement.yaml --mode iterative
 ```
 
 ### 3. EditRefine Standalone Inference (Single Image)
 
 ```bash
 python run_editrefine_inference.py \
-  --editrefine-config config_editrefine_inference.yaml \
+  --editrefine-config config/config_editrefine_inference.yaml \
   --image /path/to/image.png \
   --instruction "Add a red hat"
 ```
@@ -193,7 +193,7 @@ Single-image inference: **Image + Instruction** → Primary Edit → EditRefine 
 
 ```bash
 python run_editrefine_inference.py \
-  --editrefine-config config_editrefine_inference.yaml \
+  --editrefine-config config/config_editrefine_inference.yaml \
   --image img.png \
   --instruction "Change the sky to sunset" \
   --output-dir ./my_output \
@@ -206,7 +206,7 @@ python run_editrefine_inference.py \
 
 ### How to Switch Image Edit Model
 
-Edit `config_iterative_refinement.yaml` and uncomment desired model in `diffusion_model.primary` section. 11 models supported (see [`config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md`](config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md) for environment requirements).
+Edit `config/config_iterative_refinement.yaml` and uncomment desired model in `diffusion_model.primary` section. 11 models supported (see [`config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md`](config/DIFFUSION_FRAMEWORK_ENV_SUMMARY.md) for environment requirements).
 
 ---
 
@@ -250,7 +250,7 @@ evaluation:
 2. Inherit from `BaseDiffusionModel`
 3. Implement `edit_image()` and optionally `batch_edit()`
 4. Register in `iterative_pipeline_v7.py` loaders
-5. Add config template to `config_iterative_refinement.yaml`
+5. Add config template to `config/config_iterative_refinement.yaml`
 
 ### Add New Reward Model
 
