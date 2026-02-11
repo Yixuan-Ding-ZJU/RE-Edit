@@ -68,6 +68,7 @@ RE-Edit_EditRefine/
 git clone https://github.com/Yixuan-Ding-ZJU/RE-Edit.git
 conda create -n RE-Edit python==3.12
 conda activate RE-Edit
+cd RE-Edit
 pip install -r requirements.txt
 ```
 
