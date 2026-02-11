@@ -2,7 +2,7 @@
 
 # Is This Edit Correct? A Multi-Dimensional Benchmark for Reasoning-Aware Image Editing
 
-Yixuan Ding<sup>1</sup> · Wei Huang<sup>2<sup> · Ruijie Quan<sup>1</sup> · Xiaojuan Qi<sup>2</sup> · Yang Yi<sup>1</sup>
+Yixuan Ding<sup>1</sup> · Wei Huang<sup>2</sup> · Ruijie Quan<sup>1</sup> · Xiaojuan Qi<sup>2</sup> · Yang Yi<sup>1</sup>
 
 <sup>1</sup>ReLER Lab, CCAI, Zhejiang University, Hangzhou, China 
 <sup>2</sup>The University of Hong Kong, Hong Kong, China

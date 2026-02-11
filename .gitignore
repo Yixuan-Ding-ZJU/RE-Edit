@@ -59,11 +59,11 @@ checkpoint.json
 # benchmark_data/
 
 # Images
-*.png
-*.jpg
-*.jpeg
-*.webp
-generated_images/
+# *.png
+# *.jpg
+# *.jpeg
+# *.webp
+# generated_images/
 
 # OS
 .DS_Store
