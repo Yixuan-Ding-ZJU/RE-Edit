@@ -31,3 +31,4 @@ typer-slim==0.21.1
 vllm==0.11.0
 wandb==0.22.2
 wheel==0.45.1
+sentencepiece>=0.2.0
