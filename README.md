@@ -11,7 +11,7 @@ Yixuan Ding<sup>1</sup> · Wei Huang<sup>2</sup> · Ruijie Quan<sup>1</sup> · X
 
 <!-- ## 🔗 Links -->
 
-[![arXiv](https://img.shields.io/badge/arXiv-xxxxx-b31b1b.svg)](xxx)
+[![arXiv](https://arxiv.org/abs/2606.05172)](2606.05172)
 [![HuggingFace](https://img.shields.io/badge/🤗HuggingFace-RE--Edit-yellow)](https://huggingface.co/datasets/Yixuan-Ding-ZJU/RE-Edit)
 [![Dataset](https://img.shields.io/badge/🤗HuggingFace-EditRefine-orange)](https://huggingface.co/Yixuan-Ding-ZJU/EditRefine)
 [![GitHub](https://img.shields.io/badge/GitHub-Code-black)](https://github.com/Yixuan-Ding-ZJU/RE-Edit)
